@@ -1,0 +1,5 @@
+{
+  "name": "LedgerLite AI",
+  "description": "A smart bookkeeping app for small businesses featuring AI-powered receipt scanning, cashflow monitoring, and staff expense management.",
+  "requestFramePermissions": []
+}
