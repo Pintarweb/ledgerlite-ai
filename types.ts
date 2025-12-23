@@ -60,6 +60,7 @@ export interface ReceiptData {
 }
 
 export interface UserCredential {
+  id: string;
   username: string;
   password?: string;
   name: string;
@@ -69,6 +70,7 @@ export interface UserCredential {
   phone?: string;
   bio?: string;
   avatarUrl?: string;
+  createdAt?: string;
 }
 
 export interface UserRequest {

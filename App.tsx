@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Receipt, BookOpen, UserCircle, LogOut, PlusCircle, Users, Check, X, Shield, Settings, ChevronRight, Download, Search, Bell, Book, PieChart, Banknote, FileText, CalendarClock } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { LayoutDashboard, Receipt, UserCircle, LogOut, PlusCircle, Users, Check, X, Shield, Settings, ChevronRight, Download, Search, Bell, Book, PieChart, CalendarClock, RefreshCw, Menu } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { TransactionForm } from './components/TransactionForm';
 import { StaffPortal } from './components/StaffPortal';
@@ -11,15 +11,17 @@ import { UserDetail } from './components/UserDetail';
 import { GeneralLedger } from './components/GeneralLedger';
 import { Reports } from './components/Reports';
 import { Recurring } from './components/Recurring';
+import { RequestDetailModal } from './components/RequestDetailModal';
 import { Toast } from './components/Toast';
+import { Logo } from './components/Logo';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { Transaction, Claim, AdvanceRequest, UserRole, UserRequest, UserCredential, RecurringTransaction } from './types';
 import { supabase } from './lib/supabaseClient';
-import { fetchTransactions, createTransaction, fetchClaims, createClaim, updateClaimStatus, fetchProfiles, getCurrentProfile } from './services/dbService';
+import { fetchTransactions, createTransaction, fetchClaims, createClaim, updateClaimStatus, fetchProfiles, getCurrentProfile, updateProfile, deleteProfile } from './services/dbService';
 
 interface Notification {
   message: string;
-  type: 'success' | 'info';
+  type: 'success' | 'info' | 'error';
 }
 
 const App: React.FC = () => {
@@ -31,17 +33,29 @@ const App: React.FC = () => {
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserCredential | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<{ data: Claim | AdvanceRequest, type: 'CLAIM' | 'ADVANCE' } | null>(null);
   const [requestToReject, setRequestToReject] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Data State
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [advances, setAdvances] = useState<AdvanceRequest[]>([]);
   const [users, setUsers] = useState<UserCredential[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<UserRequest[]>([]);
   const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const showToast = (message: string, type: 'success' | 'info' = 'info') => {
+  // Derived state for pending requests
+  const pendingRequests = useMemo(() => {
+     return users.filter(p => p.isActive === false).map(p => ({
+          id: p.id,
+          username: p.username,
+          name: p.name,
+          date: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : 'New'
+      }));
+  }, [users]);
+
+  const showToast = (message: string, type: 'success' | 'info' | 'error' = 'info') => {
     setNotification({ message, type });
   };
 
@@ -50,8 +64,8 @@ const App: React.FC = () => {
     const initSession = async () => {
       const profile = await getCurrentProfile();
       if (profile) {
-        if (!profile.isActive) {
-           showToast("Account is deactivated. Contact administrator.", 'info');
+        if (profile.isActive === false) {
+           showToast("Account is deactivated. Contact administrator.", 'error');
            await supabase.auth.signOut();
            return;
         }
@@ -74,6 +88,7 @@ const App: React.FC = () => {
   }, [user]);
 
   const loadData = async () => {
+    setIsRefreshing(true);
     try {
       const [txs, cls, profiles] = await Promise.all([
         fetchTransactions(),
@@ -83,10 +98,11 @@ const App: React.FC = () => {
       setTransactions(txs);
       setClaims(cls);
       setUsers(profiles);
-      // setAdvances() - Implement similar fetch logic for advances/recurring
     } catch (error) {
       console.error("Error loading data:", error);
-      showToast("Failed to load latest data", "info");
+      showToast("Failed to load latest data", "error");
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -129,12 +145,19 @@ const App: React.FC = () => {
             createdBy: user?.name || 'Unknown'
         });
         if (created) {
-            await loadData(); // Refresh list
+            const formattedTx = {
+                ...created,
+                originalAmount: created.original_amount,
+                exchangeRate: created.exchange_rate,
+                createdBy: created.created_by,
+                receiptUrl: created.receipt_url
+            };
+            setTransactions(prev => [formattedTx, ...prev]);
             showToast('Transaction recorded successfully', 'success');
         }
     } catch (e) {
         console.error(e);
-        showToast('Failed to save transaction', 'info');
+        showToast('Failed to save transaction', 'error');
     }
   };
 
@@ -143,33 +166,195 @@ const App: React.FC = () => {
         await createClaim(newClaim);
         await loadData();
         showToast('Claim submitted for approval', 'success');
-    } catch(e) { showToast('Error submitting claim', 'info'); }
+    } catch(e) { showToast('Error submitting claim', 'error'); }
   };
   
-  // Placeholder implementations for UI compatibility
   const approveClaim = async (id: string) => {
+    const claim = claims.find(c => c.id === id);
+    if (!claim) return;
+
+    try {
       await updateClaimStatus(id, 'APPROVED');
-      await loadData();
-      showToast('Claim approved', 'success');
-  };
-  const rejectClaim = async (id: string) => {
-      await updateClaimStatus(id, 'REJECTED');
-      await loadData();
-      showToast('Claim rejected', 'info');
+
+      const newTransaction: Omit<Transaction, 'id'> = {
+        date: new Date().toISOString().split('T')[0],
+        description: `Expense Claim: ${claim.description} (${claim.employeeName})`,
+        amount: claim.amount,
+        type: 'DEBIT',
+        category: claim.category,
+        createdBy: user?.name || 'System',
+        currency: claim.currency,
+        originalAmount: claim.originalAmount,
+        exchangeRate: claim.exchangeRate,
+        receiptUrl: claim.receiptUrl
+      };
+
+      const createdTx = await createTransaction(newTransaction);
+      
+      if (createdTx) {
+          const formattedTx = {
+            ...createdTx,
+            originalAmount: createdTx.original_amount,
+            exchangeRate: createdTx.exchange_rate,
+            createdBy: createdTx.created_by,
+            receiptUrl: createdTx.receipt_url
+          };
+          setTransactions(prev => [formattedTx, ...prev]);
+      }
+      
+      setClaims(prev => prev.map(c => c.id === id ? { ...c, status: 'APPROVED' } : c));
+      
+      showToast('Claim approved and recorded', 'success');
+    } catch(e) { 
+        console.error("Approval error", e);
+        showToast('Failed to approve claim', 'error'); 
+    }
   };
 
-  // Functions below would need DB implementation similar to transactions/claims
+  const rejectClaim = async (id: string) => {
+    try {
+      await updateClaimStatus(id, 'REJECTED');
+      setClaims(prev => prev.map(c => c.id === id ? { ...c, status: 'REJECTED' } : c));
+      showToast('Claim rejected', 'info');
+    } catch(e) { showToast('Failed to reject claim', 'error'); }
+  };
+
   const addAdvance = (val: any) => { setAdvances(p => [...p, {...val, id: Date.now().toString(), status: 'PENDING'}]); showToast('Added (Local Only)', 'success'); };
-  const approveAdvance = (id: string) => { setAdvances(p => p.map(a => a.id === id ? {...a, status: 'APPROVED'} : a)); };
-  const rejectAdvance = (id: string) => { setAdvances(p => p.map(a => a.id === id ? {...a, status: 'REJECTED'} : a)); };
   
+  const approveAdvance = async (id: string) => {
+    const advance = advances.find(a => a.id === id);
+    if (!advance) return;
+
+    setAdvances(prev => prev.map(a => a.id === id ? { ...a, status: 'APPROVED' } : a));
+
+    try {
+        const newTransaction: Omit<Transaction, 'id'> = {
+            date: new Date().toISOString().split('T')[0],
+            description: `Cash Advance: ${advance.purpose} (${advance.employeeName})`,
+            amount: advance.amount,
+            type: 'DEBIT', 
+            category: 'Advance',
+            createdBy: user?.name || 'System',
+            currency: advance.currency,
+            originalAmount: advance.originalAmount,
+            exchangeRate: advance.exchangeRate
+        };
+
+        const createdTx = await createTransaction(newTransaction);
+        
+        if (createdTx) {
+            const formattedTx = {
+                ...createdTx,
+                originalAmount: createdTx.original_amount,
+                exchangeRate: createdTx.exchange_rate,
+                createdBy: createdTx.created_by,
+                receiptUrl: createdTx.receipt_url
+            };
+            setTransactions(prev => [formattedTx, ...prev]);
+        }
+        showToast('Advance approved and recorded in ledger', 'success');
+    } catch (e) {
+        console.error("Error recording advance transaction", e);
+        showToast('Approved locally, but ledger sync failed', 'info');
+    }
+  };
+
+  const rejectAdvance = (id: string) => {
+    setAdvances(prev => prev.map(a => a.id === id ? { ...a, status: 'REJECTED' } : a));
+    showToast('Advance rejected (Local)', 'info');
+  };
+
   const handleSignUp = (data: any) => { /* Handled in SignUp component */ };
   
-  const approveUser = (id: string) => {}; // Implement update profile
-  const rejectUser = (id: string) => {}; // Implement delete profile
-  const toggleUserStatus = (username: string) => {}; // Implement update profile
-  const updateUserRole = (username: string, role: UserRole) => {}; // Implement update profile
-  const handleUpdateProfile = (u: UserCredential) => { setUser(u); };
+  const approveUser = async (id: string) => {
+      if (!id) return;
+      const previousUsers = [...users];
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, isActive: true } : u));
+      try {
+          await updateProfile(id, { is_active: true });
+          showToast('User approved', 'success');
+      } catch(e: any) { 
+          console.error(e); 
+          showToast(e.message || 'Failed to approve user', 'error');
+          setUsers(previousUsers);
+      }
+  };
+
+  const rejectUser = async (id: string) => {
+      if (!id) return;
+      const previousUsers = [...users];
+      setUsers(prev => prev.filter(u => u.id !== id));
+      try {
+          await deleteProfile(id);
+          showToast('User request rejected', 'success');
+      } catch(e: any) { 
+          console.error(e); 
+          showToast(e.message || 'Failed to reject user', 'error'); 
+          setUsers(previousUsers); 
+      }
+  };
+
+  const toggleUserStatus = async (id: string) => {
+      const u = users.find(u => u.id === id);
+      if (!u) return;
+      const currentStatus = u.isActive === true; 
+      const newStatus = !currentStatus;
+      const previousUsers = [...users];
+      setUsers(prev => prev.map(usr => usr.id === id ? { ...usr, isActive: newStatus } : usr));
+      if (selectedUser && selectedUser.id === id) {
+          setSelectedUser({...selectedUser, isActive: newStatus});
+      }
+      try {
+          await updateProfile(id, { is_active: newStatus });
+          showToast(`User ${newStatus ? 'activated' : 'deactivated'}`, 'success');
+      } catch(e: any) { 
+          console.error(e); 
+          showToast(e.message || 'Update failed', 'error');
+          setUsers(previousUsers); 
+          if (selectedUser && selectedUser.id === id) {
+             setSelectedUser({...selectedUser, isActive: currentStatus});
+          }
+      }
+  };
+
+  const updateUserRole = async (id: string, role: UserRole) => {
+      const previousUsers = [...users];
+      const targetUser = users.find(u => u.id === id);
+      setUsers(prev => prev.map(usr => usr.id === id ? { ...usr, role } : usr));
+      if (selectedUser && selectedUser.id === id) {
+          setSelectedUser({...selectedUser, role});
+      }
+      try {
+          await updateProfile(id, { role });
+          showToast(`Role updated to ${role}`, 'success');
+      } catch(e: any) { 
+          console.error(e); 
+          showToast(e.message || 'Update failed', 'error');
+          setUsers(previousUsers); 
+          if (selectedUser && selectedUser.id === id && targetUser) {
+              setSelectedUser({...selectedUser, role: targetUser.role});
+          }
+      }
+  };
+
+  const handleUpdateProfile = async (u: UserCredential) => { 
+    setUser(u);
+    setUsers(prev => prev.map(user => user.id === u.id ? u : user));
+    try {
+        const dbUpdates = {
+            full_name: u.name,
+            email: u.email,
+            phone: u.phone,
+            bio: u.bio,
+            avatar_url: u.avatarUrl
+        };
+        await updateProfile(u.id, dbUpdates);
+        showToast('Profile updated successfully', 'success');
+    } catch (e) {
+        console.error("Profile update failed", e);
+        showToast('Failed to save profile changes', 'error');
+    }
+  };
 
   const addRecurringRule = (r: any) => setRecurringTransactions(p => [...p, {...r, id: Date.now().toString()}]);
   const deleteRecurringRule = (id: string) => setRecurringTransactions(p => p.filter(r => r.id !== id));
@@ -187,6 +372,11 @@ const App: React.FC = () => {
     link.click();
   };
 
+  const handleViewChange = (newView: typeof view) => {
+    setView(newView);
+    setIsMobileMenuOpen(false);
+  };
+
   const NavItem = ({ label, icon: Icon, active, onClick }: { label: string, icon: any, active: boolean, onClick: () => void }) => (
     <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${active ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
       <Icon size={20} className={active ? 'text-indigo-200' : ''} />
@@ -196,7 +386,7 @@ const App: React.FC = () => {
 
   return (
     <>
-      {notification && <Toast message={notification.message} type={notification.type} onClose={() => setNotification(null)} />}
+      {notification && <Toast message={notification.message} type={notification.type as any} onClose={() => setNotification(null)} />}
       <ConfirmDialog 
         isOpen={!!requestToReject}
         title="Reject Request?"
@@ -211,53 +401,79 @@ const App: React.FC = () => {
         onCancel={() => setRequestToReject(null)}
       />
 
+      {selectedRequest && (
+        <RequestDetailModal 
+            request={selectedRequest.data} 
+            type={selectedRequest.type}
+            onClose={() => setSelectedRequest(null)}
+            onApprove={(id) => {
+                if (selectedRequest.type === 'CLAIM') approveClaim(id);
+                else approveAdvance(id);
+                setSelectedRequest(null);
+            }}
+            onReject={(id) => {
+                if (selectedRequest.type === 'CLAIM') rejectClaim(id);
+                else rejectAdvance(id);
+                setSelectedRequest(null);
+            }}
+        />
+      )}
+
       {!user ? (
         isSignUpMode ? <SignUp onSignUp={handleSignUp} onBack={() => setIsSignUpMode(false)} /> : <Login onLogin={handleLogin} onSignUpClick={() => setIsSignUpMode(true)} />
       ) : (
         <div className="flex h-screen bg-slate-50 font-sans">
-          <aside className="w-72 bg-slate-900 border-r border-slate-800 hidden md:flex flex-col relative z-20 shadow-xl">
-            <div className="p-8 pb-4">
-              <div className="flex items-center gap-3 text-white mb-2">
-                <div className="bg-gradient-to-tr from-indigo-500 to-violet-500 text-white p-2.5 rounded-xl shadow-lg shadow-indigo-500/30">
-                  <Shield size={24} fill="currentColor" className="text-white/90" />
+          {/* Mobile Menu Overlay */}
+          {isMobileMenuOpen && (
+            <div 
+                className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm transition-opacity"
+                onClick={() => setIsMobileMenuOpen(false)}
+            />
+          )}
+
+          <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 border-r border-slate-800 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:flex ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="p-8 pb-4 flex justify-between items-center">
+              <div className="flex items-center gap-3 text-white">
+                <div className="w-10 h-10">
+                  <Logo className="w-full h-full drop-shadow-lg" />
                 </div>
                 <div><span className="text-xl font-bold tracking-tight block leading-tight">ArkAlliance</span><span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Financial Suite</span></div>
               </div>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-white p-1">
+                  <X size={24} />
+              </button>
             </div>
+            
             <div className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-              {/* ADMIN & MANAGER - Shared Main Menu */}
               {(user.role === 'ADMIN' || user.role === 'MANAGER') && (
                 <>
                   <div className="px-4 pb-2"><p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Main Menu</p></div>
-                  <NavItem label="Overview" icon={LayoutDashboard} active={view === 'DASHBOARD'} onClick={() => setView('DASHBOARD')} />
-                  <NavItem label="Transactions" icon={Receipt} active={view === 'TRANSACTIONS'} onClick={() => setView('TRANSACTIONS')} />
-                  <NavItem label="Recurring" icon={CalendarClock} active={view === 'RECURRING'} onClick={() => setView('RECURRING')} />
-                  <NavItem label="General Ledger" icon={Book} active={view === 'LEDGER'} onClick={() => setView('LEDGER')} />
-                  <NavItem label="Reports" icon={PieChart} active={view === 'REPORTS'} onClick={() => setView('REPORTS')} />
+                  <NavItem label="Overview" icon={LayoutDashboard} active={view === 'DASHBOARD'} onClick={() => handleViewChange('DASHBOARD')} />
+                  <NavItem label="Transactions" icon={Receipt} active={view === 'TRANSACTIONS'} onClick={() => handleViewChange('TRANSACTIONS')} />
+                  <NavItem label="Recurring" icon={CalendarClock} active={view === 'RECURRING'} onClick={() => handleViewChange('RECURRING')} />
+                  <NavItem label="General Ledger" icon={Book} active={view === 'LEDGER'} onClick={() => handleViewChange('LEDGER')} />
+                  <NavItem label="Reports" icon={PieChart} active={view === 'REPORTS'} onClick={() => handleViewChange('REPORTS')} />
                 </>
               )}
 
-              {/* ADMIN ONLY - Management */}
               {user.role === 'ADMIN' && (
                 <>
                   <div className="px-4 pb-2 pt-4"><p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Management</p></div>
-                  <NavItem label="Staff Requests" icon={UserCircle} active={view === 'REQUESTS'} onClick={() => setView('REQUESTS')} />
-                  <NavItem label="Team Access" icon={Users} active={view === 'TEAM'} onClick={() => setView('TEAM')} />
+                  <NavItem label="Staff Requests" icon={UserCircle} active={view === 'REQUESTS'} onClick={() => handleViewChange('REQUESTS')} />
+                  <NavItem label="Team Access" icon={Users} active={view === 'TEAM'} onClick={() => handleViewChange('TEAM')} />
                 </>
               )}
-               {/* MANAGER - Read Only Access to Team */}
                {user.role === 'MANAGER' && (
                   <>
                     <div className="px-4 pb-2 pt-4"><p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Management</p></div>
-                    <NavItem label="Team Overview" icon={Users} active={view === 'TEAM'} onClick={() => setView('TEAM')} />
+                    <NavItem label="Team Overview" icon={Users} active={view === 'TEAM'} onClick={() => handleViewChange('TEAM')} />
                   </>
                )}
 
-              {/* STAFF & MANAGER - Personal Portal */}
-              {(user.role === 'STAFF' || user.role === 'MANAGER') && (
+              {(user.role === 'STAFF' || user.role === 'MANAGER' || user.role === 'ADMIN') && (
                  <>
                   {(user.role === 'MANAGER' || user.role === 'ADMIN') && <div className="px-4 pb-2 pt-4"><p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Personal</p></div>}
-                  <NavItem label="My Staff Portal" icon={UserCircle} active={view === 'STAFF_PORTAL'} onClick={() => setView('STAFF_PORTAL')} />
+                  <NavItem label="My Staff Portal" icon={UserCircle} active={view === 'STAFF_PORTAL'} onClick={() => handleViewChange('STAFF_PORTAL')} />
                  </>
               )}
             </div>
@@ -273,10 +489,16 @@ const App: React.FC = () => {
             </div>
           </aside>
 
-          <main className="flex-1 overflow-y-auto flex flex-col relative">
+          <main className="flex-1 overflow-y-auto flex flex-col relative w-full">
             <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-30">
               <div className="flex items-center gap-4">
-                  <h1 className="text-xl font-bold text-slate-800 tracking-tight">
+                  <button 
+                    onClick={() => setIsMobileMenuOpen(true)}
+                    className="md:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    <Menu size={24} />
+                  </button>
+                  <h1 className="text-lg md:text-xl font-bold text-slate-800 tracking-tight truncate max-w-[200px] md:max-w-none">
                     {view === 'DASHBOARD' ? 'Company Overview' : 
                      view === 'TRANSACTIONS' ? 'Journal Entries' : 
                      view === 'RECURRING' ? 'Recurring Transactions' : 
@@ -294,16 +516,15 @@ const App: React.FC = () => {
                       <Bell size={20} />
                       {user.role === 'ADMIN' && (claims.some(c => c.status === 'PENDING') || advances.some(a => a.status === 'PENDING')) && <span className="absolute top-1.5 right-2 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>}
                   </button>
-
+                  
                   <button 
-                    onClick={handleLogout} 
-                    className="md:hidden p-2 text-slate-400 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-50"
-                    title="Sign Out"
+                    onClick={loadData}
+                    className={`p-2 text-slate-400 hover:text-indigo-600 transition-colors rounded-lg hover:bg-indigo-50 ${isRefreshing ? 'animate-spin' : ''}`}
+                    title="Refresh Data"
                   >
-                    <LogOut size={20} />
+                    <RefreshCw size={20} />
                   </button>
 
-                  {/* New Entry Button - Only for Admin */}
                   {user.role === 'ADMIN' && view !== 'REQUESTS' && view !== 'TEAM' && view !== 'REPORTS' && view !== 'RECURRING' && view !== 'STAFF_PORTAL' && (
                     <button onClick={() => setShowTransactionForm(true)} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 md:px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5 transition-all">
                         <PlusCircle size={18} />
@@ -429,9 +650,9 @@ const App: React.FC = () => {
 
               {user.role === 'ADMIN' && view === 'REQUESTS' && (
                  <div className="space-y-6">
-                     <div className="flex gap-2 border-b border-slate-200 pb-2">
-                        <button onClick={() => setAdminRequestTab('CLAIMS')} className={`px-4 py-2 font-bold text-sm rounded-lg transition-all ${adminRequestTab === 'CLAIMS' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`}>Expense Claims</button>
-                        <button onClick={() => setAdminRequestTab('ADVANCE')} className={`px-4 py-2 font-bold text-sm rounded-lg transition-all ${adminRequestTab === 'ADVANCE' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-500 hover:bg-slate-50'}`}>Cash Advances</button>
+                     <div className="flex gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
+                        <button onClick={() => setAdminRequestTab('CLAIMS')} className={`px-4 py-2 font-bold text-sm rounded-lg transition-all whitespace-nowrap ${adminRequestTab === 'CLAIMS' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-500 hover:bg-slate-50'}`}>Expense Claims</button>
+                        <button onClick={() => setAdminRequestTab('ADVANCE')} className={`px-4 py-2 font-bold text-sm rounded-lg transition-all whitespace-nowrap ${adminRequestTab === 'ADVANCE' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-500 hover:bg-slate-50'}`}>Cash Advances</button>
                      </div>
 
                      {adminRequestTab === 'CLAIMS' ? (
@@ -439,7 +660,48 @@ const App: React.FC = () => {
                             <div>
                                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Pending Approvals</h3>
                                 {claims.filter(c => c.status === 'PENDING').length === 0 ? <div className="p-12 text-center bg-white rounded-2xl border border-slate-100 text-slate-400"><div className="inline-flex p-4 bg-slate-50 rounded-full mb-3 text-slate-300"><Check size={32} /></div><p className="font-medium">No pending claims.</p></div> : (
-                                    <div className="grid gap-4">{claims.filter(c => c.status === 'PENDING').map(claim => (<div key={claim.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between group hover:shadow-md transition-all gap-4"><div className="flex items-center gap-4"><div className="h-12 w-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-lg">{claim.employeeName.charAt(0)}</div><div><p className="font-bold text-slate-800 text-lg">{claim.description}</p><div className="flex items-center gap-2 text-sm text-slate-500 font-medium mt-1"><span>{claim.employeeName}</span><span className="w-1 h-1 bg-slate-300 rounded-full"></span><span>{claim.date}</span><span className="w-1 h-1 bg-slate-300 rounded-full"></span><span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{claim.category}</span></div></div></div><div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto"><div className="text-right"><span className="text-xl font-bold text-slate-800 block">RM {claim.amount.toFixed(2)}</span></div><div className="flex gap-2"><button onClick={() => approveClaim(claim.id)} className="px-4 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl text-sm font-bold transition-colors">Approve</button><button onClick={() => rejectClaim(claim.id)} className="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-sm font-bold transition-colors">Reject</button></div></div></div>))}</div>
+                                    <div className="grid gap-4">
+                                        {claims.filter(c => c.status === 'PENDING').map(claim => (
+                                            <div 
+                                                key={claim.id} 
+                                                onClick={() => setSelectedRequest({ data: claim, type: 'CLAIM' })}
+                                                className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between group hover:shadow-md transition-all gap-4 cursor-pointer hover:border-indigo-200"
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className="h-12 w-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-lg shrink-0">{claim.employeeName.charAt(0)}</div>
+                                                    <div className="min-w-0">
+                                                        <p className="font-bold text-slate-800 text-lg group-hover:text-indigo-700 transition-colors truncate">{claim.description}</p>
+                                                        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 font-medium mt-1">
+                                                            <span>{claim.employeeName}</span>
+                                                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                            <span>{claim.date}</span>
+                                                            <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                            <span className="bg-slate-100 px-2 py-0.5 rounded text-xs">{claim.category}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto">
+                                                    <div className="text-right">
+                                                        <span className="text-xl font-bold text-slate-800 block">RM {claim.amount.toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); approveClaim(claim.id); }} 
+                                                            className="px-4 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl text-sm font-bold transition-colors"
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                        <button 
+                                                            onClick={(e) => { e.stopPropagation(); rejectClaim(claim.id); }} 
+                                                            className="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-sm font-bold transition-colors"
+                                                        >
+                                                            Reject
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
                             <div>
@@ -467,14 +729,56 @@ const App: React.FC = () => {
                         </>
                      ) : (
                         <div>
-                             <p className="text-center text-slate-400 py-8">Advance Requests integration pending DB setup...</p>
+                             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Pending Advances</h3>
+                             {advances.filter(a => a.status === 'PENDING').length === 0 ? <div className="p-12 text-center bg-white rounded-2xl border border-slate-100 text-slate-400"><div className="inline-flex p-4 bg-slate-50 rounded-full mb-3 text-slate-300"><Check size={32} /></div><p className="font-medium">No pending advance requests.</p></div> : (
+                                <div className="grid gap-4">
+                                    {advances.filter(a => a.status === 'PENDING').map(adv => (
+                                        <div 
+                                            key={adv.id}
+                                            onClick={() => setSelectedRequest({ data: adv, type: 'ADVANCE' })}
+                                            className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row md:items-center justify-between group hover:shadow-md transition-all gap-4 cursor-pointer hover:border-emerald-200"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="h-12 w-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold text-lg shrink-0">{adv.employeeName.charAt(0)}</div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-slate-800 text-lg group-hover:text-emerald-700 transition-colors truncate">{adv.purpose}</p>
+                                                    <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 font-medium mt-1">
+                                                        <span>{adv.employeeName}</span>
+                                                        <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                                                        <span>Req: {adv.requestDate}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto">
+                                                <div className="text-right">
+                                                    <span className="text-xl font-bold text-slate-800 block">RM {adv.amount.toFixed(2)}</span>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); approveAdvance(adv.id); }} 
+                                                        className="px-4 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl text-sm font-bold transition-colors"
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); rejectAdvance(adv.id); }} 
+                                                        className="px-4 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl text-sm font-bold transition-colors"
+                                                    >
+                                                        Reject
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                             )}
                         </div>
                      )}
                  </div>
               )}
 
               {/* Shared Staff Portal for Staff and Managers */}
-              {(user.role === 'STAFF' || (user.role === 'MANAGER' && view === 'STAFF_PORTAL')) && (
+              {(user.role === 'STAFF' || ((user.role === 'MANAGER' || user.role === 'ADMIN') && view === 'STAFF_PORTAL')) && (
                   <StaffPortal 
                     claims={claims.filter(c => c.employeeName === user.name)} 
                     advances={advances.filter(a => a.employeeName === user.name)}

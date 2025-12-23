@@ -73,25 +73,63 @@ export const createClaim = async (claim: Omit<Claim, 'id' | 'status'>) => {
 };
 
 export const updateClaimStatus = async (id: string, status: string) => {
-  const { error } = await supabase.from('claims').update({ status }).eq('id', id);
+  const { error } = await supabase
+    .from('claims')
+    .update({ status })
+    .eq('id', id);
+
   if (error) throw error;
 };
 
 // --- PROFILES / USERS ---
 export const fetchProfiles = async (): Promise<UserCredential[]> => {
-  const { data, error } = await supabase.from('profiles').select('*');
+  const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
   if (error) throw error;
   
   return data.map((p: any) => ({
-    username: p.username || p.email.split('@')[0],
+    id: p.id || '', // Ensure ID is present
+    username: p.username || p.email?.split('@')[0] || 'unknown',
     name: p.full_name || 'User',
     role: p.role as UserRole,
     email: p.email,
     isActive: p.is_active,
     avatarUrl: p.avatar_url,
     bio: p.bio,
-    phone: p.phone
+    phone: p.phone,
+    createdAt: p.created_at
   }));
+};
+
+export const updateProfile = async (id: string, updates: Partial<any>) => {
+    const cleanId = id.trim();
+    
+    // We strictly use the standard update method. 
+    // We do NOT ask for 'select' or 'count' return values to avoid RLS policy errors 
+    // where the user can update a row but not see the result.
+    const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', cleanId);
+
+    if (error) {
+        console.error("Supabase Update Error:", error);
+        throw error;
+    }
+    // If no error, we assume success for optimistic UI updates.
+};
+
+export const updateProfileByUsername = async (username: string, updates: Partial<any>) => {
+    const { error } = await supabase.from('profiles').update(updates).eq('username', username);
+    if (error) throw error;
+};
+
+export const deleteProfile = async (id: string) => {
+    const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', id);
+        
+    if (error) throw error;
 };
 
 // --- AUTH HELPERS ---
@@ -107,6 +145,7 @@ export const getCurrentProfile = async () => {
     
   if (profile) {
      return {
+        id: profile.id,
         username: profile.username,
         name: profile.full_name,
         role: profile.role,
@@ -114,7 +153,8 @@ export const getCurrentProfile = async () => {
         isActive: profile.is_active,
         avatarUrl: profile.avatar_url,
         bio: profile.bio,
-        phone: profile.phone
+        phone: profile.phone,
+        createdAt: profile.created_at
      } as UserCredential;
   }
   return null;

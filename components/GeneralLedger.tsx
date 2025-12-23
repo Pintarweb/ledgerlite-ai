@@ -114,59 +114,61 @@ export const GeneralLedger: React.FC<GeneralLedgerProps> = ({ transactions }) =>
           </div>
           
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative flex-1 md:flex-none">
+            <div className="relative flex-1 md:flex-none w-full md:w-auto">
               <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
               <input 
                 type="text" 
                 placeholder="Search accounts..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 min-w-[240px]"
+                className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 min-w-0 md:min-w-[240px]"
               />
             </div>
           </div>
         </div>
 
         {/* Filters Bar */}
-        <div className="px-4 py-3 bg-slate-50/50 flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-                <Calendar size={16} className="text-slate-400" />
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date Range:</span>
+        <div className="px-4 py-3 bg-slate-50/50 flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2">
+                    <Calendar size={16} className="text-slate-400" />
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date:</span>
+                </div>
+                <input 
+                    type="date" 
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+                <span className="text-slate-400 text-sm hidden sm:inline">to</span>
+                <input 
+                    type="date" 
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
             </div>
-            <input 
-                type="date" 
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
-            <span className="text-slate-400 text-sm">to</span>
-            <input 
-                type="date" 
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            />
 
-            <div className="w-px h-6 bg-slate-200 mx-2 hidden sm:block"></div>
+            <div className="w-full h-px bg-slate-200 sm:w-px sm:h-6 sm:bg-slate-200"></div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
                 <ListFilter size={16} className="text-slate-400" />
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type:</span>
+                <select
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value as any)}
+                    className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                >
+                    <option value="ALL">All Transactions</option>
+                    <option value="CREDIT">Credit (Income) Only</option>
+                    <option value="DEBIT">Debit (Expense) Only</option>
+                </select>
             </div>
-            <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as any)}
-                className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-            >
-                <option value="ALL">All Transactions</option>
-                <option value="CREDIT">Credit (Income) Only</option>
-                <option value="DEBIT">Debit (Expense) Only</option>
-            </select>
 
             {hasFilters && (
                 <button 
                     onClick={clearFilters}
-                    className="ml-auto flex items-center gap-1.5 text-xs font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors"
+                    className="ml-auto sm:ml-0 flex items-center gap-1.5 text-xs font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors w-full sm:w-auto justify-center sm:justify-start"
                 >
                     <RotateCcw size={14} /> Clear Filters
                 </button>

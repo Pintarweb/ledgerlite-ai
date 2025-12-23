@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { BookOpen, User, Lock, ArrowRight, Loader2, Shield, Mail } from 'lucide-react';
-import { UserRole } from '../types';
+import { Lock, ArrowRight, Loader2, Mail } from 'lucide-react';
+import { Logo } from './Logo';
 
 interface LoginProps {
   onLogin: (email: string, password?: string) => Promise<string | void>;
@@ -33,11 +33,11 @@ export const Login: React.FC<LoginProps> = ({ onLogin, onSignUpClick }) => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-      <div className="mb-8 flex items-center gap-3 text-indigo-600">
-        <div className="bg-indigo-600 text-white p-2.5 rounded-xl">
-          <Shield size={32} />
+      <div className="mb-8 flex items-center gap-4 text-indigo-600">
+        <div className="w-14 h-14">
+          <Logo className="w-full h-full drop-shadow-xl" />
         </div>
-        <h1 className="text-3xl font-bold text-slate-800 tracking-tight">ArkAlliance</h1>
+        <h1 className="text-4xl font-bold text-slate-800 tracking-tight">ArkAlliance</h1>
       </div>
 
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-100">

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Claim, AdvanceRequest, ClaimStatus, CATEGORIES, CURRENCIES } from '../types';
-import { analyzeReceipt } from '../services/geminiService';
+import { analyzeReceipt, fileToDataUri } from '../services/geminiService';
 import { getExchangeRate } from '../services/currencyService';
 import { FileText, Clock, CheckCircle, XCircle, Plus, Loader2, Wand2, Globe, Calculator, Banknote, Calendar, History, Camera, Upload, Image as ImageIcon } from 'lucide-react';
 
@@ -92,11 +92,20 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ claims, advances, curr
     }
   };
 
-  const handleSubmitClaim = (e: React.FormEvent) => {
+  const handleSubmitClaim = async (e: React.FormEvent) => {
     e.preventDefault();
     const origAmt = parseFloat(originalAmount) || 0;
     const rate = parseFloat(exchangeRate) || 1;
     const baseAmt = origAmt * rate;
+
+    let receiptDataUri = undefined;
+    if (receiptFile) {
+        try {
+            receiptDataUri = await fileToDataUri(receiptFile);
+        } catch (error) {
+            console.error("Failed to convert file", error);
+        }
+    }
 
     onAddClaim({
       employeeName: currentUser,
@@ -104,7 +113,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({ claims, advances, curr
       description,
       amount: baseAmt,
       category,
-      receiptUrl: receiptFile ? URL.createObjectURL(receiptFile) : undefined,
+      receiptUrl: receiptDataUri,
       currency,
       originalAmount: origAmt,
       exchangeRate: rate

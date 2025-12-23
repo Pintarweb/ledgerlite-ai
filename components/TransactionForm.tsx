@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Transaction, TransactionType, CATEGORIES, CURRENCIES } from '../types';
-import { analyzeReceipt } from '../services/geminiService';
+import { analyzeReceipt, fileToDataUri } from '../services/geminiService';
 import { getExchangeRate } from '../services/currencyService';
 import { Loader2, Check, X, Wand2, Globe, Calculator, Calendar, Tag, AlignLeft } from 'lucide-react';
 
@@ -86,8 +86,18 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransacti
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    let receiptDataUri = undefined;
+    if (receiptFile) {
+        try {
+            receiptDataUri = await fileToDataUri(receiptFile);
+        } catch(e) {
+            console.error("Failed to process image", e);
+        }
+    }
+
     onAddTransaction({
       date,
       description,
@@ -97,16 +107,16 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransacti
       currency,
       originalAmount: parseFloat(originalAmount),
       exchangeRate: parseFloat(exchangeRate),
-      receiptUrl: receiptFile ? URL.createObjectURL(receiptFile) : undefined,
+      receiptUrl: receiptDataUri,
       createdBy: 'Admin',
     });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm transition-all">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
-        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+    <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm transition-all overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col my-auto relative">
+        <div className="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-white shrink-0 sticky top-0 z-10">
           <div>
               <h2 className="text-xl font-bold text-slate-800">New Transaction</h2>
               <p className="text-sm text-slate-500">Record income or expense</p>
@@ -116,7 +126,7 @@ export const TransactionForm: React.FC<TransactionFormProps> = ({ onAddTransacti
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto custom-scrollbar">
+        <div className="p-6 overflow-y-auto custom-scrollbar max-h-[80vh]">
           {/* AI Scanner Trigger */}
           <div className="mb-6">
             <div 

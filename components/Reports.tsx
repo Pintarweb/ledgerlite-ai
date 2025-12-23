@@ -2,7 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { Transaction } from '../types';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Download, Printer, Filter, Calendar } from 'lucide-react';
+import { Printer, Calendar } from 'lucide-react';
+import { Logo } from './Logo';
 
 interface ReportsProps {
   transactions: Transaction[];
@@ -52,25 +53,19 @@ export const Reports: React.FC<ReportsProps> = ({ transactions }) => {
     };
   }, [transactions, year]);
 
-  // Calculations for Balance Sheet (Cumulative up to selected year end)
+  // Calculations for Balance Sheet
   const bsData = useMemo(() => {
-    // For Balance Sheet, we usually look at cumulative data up to the end of the selected period.
     const filtered = transactions.filter(t => new Date(t.date).getFullYear() <= year);
     
     const totalAssets = filtered.reduce((acc, t) => acc + (t.type === 'CREDIT' ? t.amount : -t.amount), 0);
-    // Since this is a simple cashbook, we assume:
-    // Assets = Cash on Hand
-    // Liabilities = 0 (unless we add a feature to track unpaid bills)
-    // Equity = Opening Balance + Retained Earnings
     
     return {
         assets: totalAssets,
         liabilities: 0,
-        equity: totalAssets // Assets - Liabilities
+        equity: totalAssets
     };
   }, [transactions, year]);
 
-  // Chart Data for Expenses
   const pieData = useMemo(() => {
     const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6'];
     return Object.entries(plData.expenseByCategory)
@@ -86,36 +81,36 @@ export const Reports: React.FC<ReportsProps> = ({ transactions }) => {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       
       {/* Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 print:hidden">
-        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 print:hidden">
+        <div className="flex flex-wrap items-center gap-2 bg-slate-100 p-1 rounded-xl w-full md:w-auto">
             <button
                 onClick={() => setReportType('PL')}
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${reportType === 'PL' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`flex-1 md:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-all ${reportType === 'PL' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
                 Profit & Loss
             </button>
             <button
                 onClick={() => setReportType('BALANCE_SHEET')}
-                className={`px-4 py-2 text-sm font-bold rounded-lg transition-all ${reportType === 'BALANCE_SHEET' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`flex-1 md:flex-none px-4 py-2 text-sm font-bold rounded-lg transition-all ${reportType === 'BALANCE_SHEET' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
                 Balance Sheet
             </button>
         </div>
 
-        <div className="flex items-center gap-4">
-            <div className="relative">
+        <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="relative flex-1 md:flex-none">
                 <Calendar className="absolute left-3 top-2.5 text-slate-400" size={16} />
                 <select 
                     value={year}
                     onChange={(e) => setYear(parseInt(e.target.value))}
-                    className="pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full md:w-auto pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                 >
                     {years.map(y => <option key={y} value={y}>Fiscal Year {y}</option>)}
                 </select>
             </div>
             <button 
                 onClick={handlePrint}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-700 transition-colors"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-700 transition-colors"
             >
                 <Printer size={16} /> Print
             </button>
@@ -124,9 +119,12 @@ export const Reports: React.FC<ReportsProps> = ({ transactions }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* The Paper Document */}
-        <div className="lg:col-span-2 bg-white rounded-none sm:rounded-sm shadow-md border border-slate-200 min-h-[800px] p-12 print:shadow-none print:border-none print:w-full print:p-0">
+        <div className="lg:col-span-2 bg-white rounded-none sm:rounded-sm shadow-md border border-slate-200 min-h-[800px] p-6 md:p-12 print:shadow-none print:border-none print:w-full print:p-0">
             {/* Document Header */}
-            <div className="text-center mb-12 border-b border-slate-800 pb-8">
+            <div className="text-center mb-12 border-b border-slate-800 pb-8 flex flex-col items-center">
+                <div className="w-16 h-16 mb-4">
+                  <Logo className="w-full h-full" />
+                </div>
                 <h1 className="text-3xl font-serif font-bold text-slate-900 mb-2">ArkAlliance</h1>
                 <h2 className="text-xl font-medium text-slate-600 uppercase tracking-widest mb-1">
                     {reportType === 'PL' ? 'Profit & Loss Statement' : 'Balance Sheet'}
@@ -137,7 +135,7 @@ export const Reports: React.FC<ReportsProps> = ({ transactions }) => {
             </div>
 
             {reportType === 'PL' ? (
-                <div className="max-w-xl mx-auto space-y-8 font-serif">
+                <div className="max-w-xl mx-auto space-y-8 font-serif overflow-x-auto">
                     {/* Income Section */}
                     <div>
                         <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 border-b border-slate-200 pb-1">Revenues</h3>
@@ -199,7 +197,7 @@ export const Reports: React.FC<ReportsProps> = ({ transactions }) => {
                     </div>
                 </div>
             ) : (
-                <div className="max-w-xl mx-auto space-y-8 font-serif">
+                <div className="max-w-xl mx-auto space-y-8 font-serif overflow-x-auto">
                      {/* Assets */}
                      <div>
                         <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 mb-4 border-b border-slate-200 pb-1">Assets</h3>

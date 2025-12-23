@@ -10,8 +10,8 @@ interface UserDetailProps {
   transactions: Transaction[];
   claims: Claim[];
   onClose: () => void;
-  onUpdateRole: (username: string, role: UserRole) => void;
-  onToggleStatus: (username: string) => void;
+  onUpdateRole: (id: string, role: UserRole) => void;
+  onToggleStatus: (id: string) => void;
 }
 
 export const UserDetail: React.FC<UserDetailProps> = ({ 
@@ -49,7 +49,7 @@ export const UserDetail: React.FC<UserDetailProps> = ({
       setShowDeactivateConfirm(true);
     } else {
       // If currently inactive, just activate
-      onToggleStatus(user.username);
+      onToggleStatus(user.id);
     }
   };
 
@@ -61,7 +61,7 @@ export const UserDetail: React.FC<UserDetailProps> = ({
         message={`Are you sure you want to deactivate ${user.name}? They will lose access to the platform immediately.`}
         confirmText="Deactivate"
         onConfirm={() => {
-          onToggleStatus(user.username);
+          onToggleStatus(user.id);
           setShowDeactivateConfirm(false);
         }}
         onCancel={() => setShowDeactivateConfirm(false)}
@@ -138,19 +138,19 @@ export const UserDetail: React.FC<UserDetailProps> = ({
                             <span className="text-sm font-medium text-slate-700">Assign Role</span>
                             <div className="flex bg-white rounded-lg border border-slate-200 p-1 shadow-sm">
                                 <button
-                                    onClick={() => onUpdateRole(user.username, 'STAFF')}
+                                    onClick={() => onUpdateRole(user.id, 'STAFF')}
                                     className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${user.role === 'STAFF' ? 'bg-slate-100 text-slate-800 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                     Staff
                                 </button>
                                 <button
-                                    onClick={() => onUpdateRole(user.username, 'MANAGER')}
+                                    onClick={() => onUpdateRole(user.id, 'MANAGER')}
                                     className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${user.role === 'MANAGER' ? 'bg-purple-100 text-purple-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                     Manager
                                 </button>
                                 <button
-                                    onClick={() => onUpdateRole(user.username, 'ADMIN')}
+                                    onClick={() => onUpdateRole(user.id, 'ADMIN')}
                                     className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${user.role === 'ADMIN' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
                                 >
                                     Admin
