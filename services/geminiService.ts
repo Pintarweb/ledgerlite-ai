@@ -2,7 +2,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ReceiptData } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || 'FAKE_API_KEY_FOR_DEVELOPMENT' });
 
 /**
  * Converts a File object to a Base64 string (raw data for Gemini).
