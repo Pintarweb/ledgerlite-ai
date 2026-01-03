@@ -2,7 +2,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ReceiptData } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || 'FAKE_API_KEY_FOR_DEVELOPMENT' });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
 /**
  * Converts a File object to a Base64 string (raw data for Gemini).
@@ -50,19 +50,19 @@ export const fileToDataUri = async (file: File): Promise<string> => {
 
         canvas.width = width;
         canvas.height = height;
-        
+
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-             reject(new Error("Could not get canvas context"));
-             return;
+          reject(new Error("Could not get canvas context"));
+          return;
         }
-        
+
         ctx.drawImage(img, 0, 0, width, height);
-        
+
         // Return compressed JPEG data URI
-        resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
       };
-      
+
       img.onerror = () => reject(new Error("Failed to load image"));
       img.src = event.target?.result as string;
     };
@@ -77,7 +77,7 @@ export const fileToDataUri = async (file: File): Promise<string> => {
 export const analyzeReceipt = async (file: File): Promise<ReceiptData> => {
   try {
     const base64Data = await fileToGenerativePart(file);
-    
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {

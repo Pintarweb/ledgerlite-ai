@@ -1,143 +1,255 @@
 
 import React, { useState } from 'react';
 import { Claim, AdvanceRequest } from '../types';
-import { X, Check, XCircle, FileText, Calendar, DollarSign, User, Clock, FileDigit, ImageOff } from 'lucide-react';
+import { X, Check, XCircle, FileText, Calendar, DollarSign, User, Clock, FileDigit, ImageOff, ZoomIn, Download } from 'lucide-react';
 
 interface RequestDetailModalProps {
-  request: Claim | AdvanceRequest;
-  type: 'CLAIM' | 'ADVANCE';
-  onClose: () => void;
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+    request: Claim | AdvanceRequest;
+    type: 'CLAIM' | 'ADVANCE';
+    onClose: () => void;
+    onApprove: (id: string) => void;
+    onReject: (id: string) => void;
 }
 
 export const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ request, type, onClose, onApprove, onReject }) => {
-  const isClaim = type === 'CLAIM';
-  const claim = isClaim ? (request as Claim) : null;
-  const advance = !isClaim ? (request as AdvanceRequest) : null;
-  const [imageError, setImageError] = useState(false);
+    const isClaim = type === 'CLAIM';
+    const claim = isClaim ? (request as Claim) : null;
+    const advance = !isClaim ? (request as AdvanceRequest) : null;
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const [isZoomed, setIsZoomed] = useState(false);
+    const [imageError, setImageError] = useState(false);
 
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
-      <div 
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">Review {isClaim ? 'Expense Claim' : 'Cash Advance'}</h2>
-            <p className="text-sm text-slate-500">
-               ID: #{request.id.slice(0, 8)} • Submitted by <span className="font-semibold text-slate-700">{isClaim ? claim?.employeeName : advance?.employeeName}</span>
-            </p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
-            <X size={20} />
-          </button>
-        </div>
+    React.useEffect(() => {
+        if (isClaim && claim?.receiptUrl) {
+            // If it looks like a URL (http/https/data), use it directly. 
+            // Otherwise assume it is a private storage path.
+            if (claim.receiptUrl.startsWith('http') || claim.receiptUrl.startsWith('data:')) {
+                setImageUrl(claim.receiptUrl);
+            } else {
+                // Fetch signed URL
+                const fetchSignedUrl = async () => {
+                    try {
+                        // We request a signed URL valid for 1 hour
+                        const { data, error } = await import('../lib/supabaseClient').then(m => m.supabase.storage
+                            .from('receipts')
+                            .createSignedUrl(claim.receiptUrl!, 3600));
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Details Column */}
-                <div className="space-y-6">
+                        if (error) throw error;
+                        if (data?.signedUrl) setImageUrl(data.signedUrl);
+                    } catch (e) {
+                        console.error("Error fetching signed URL", e);
+                        setImageError(true);
+                    }
+                };
+                fetchSignedUrl();
+            }
+        }
+    }, [claim]);
+
+    // Full Screen Zoom View
+    if (isZoomed && imageUrl) {
+        return (
+            <div className="fixed inset-0 z-[60] bg-black/95 flex flex-col animate-in fade-in duration-200">
+                <div className="flex justify-between items-center p-4 text-white shrink-0">
                     <div>
-                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description / Purpose</h3>
-                        <p className="text-lg font-medium text-slate-800 leading-relaxed">
-                            {isClaim ? claim?.description : advance?.purpose}
+                        <h3 className="font-bold text-lg">Receipt Inspection</h3>
+                        <p className="text-sm text-slate-400">{claim?.description} • {claim?.date}</p>
+                    </div>
+                    <button onClick={() => setIsZoomed(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+                <div className="flex-1 overflow-hidden p-4 flex items-center justify-center">
+                    {imageUrl.toLowerCase().includes('.pdf') || (claim?.receiptUrl?.toLowerCase().endsWith('.pdf')) ? (
+                        <iframe
+                            src={imageUrl}
+                            className="w-full h-full bg-white rounded-lg border-0 shadow-2xl"
+                            title="Receipt PDF"
+                        />
+                    ) : (
+                        <img
+                            src={imageUrl}
+                            alt="Receipt Zoom"
+                            className="max-w-full max-h-full object-contain shadow-2xl"
+                        />
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+            <div
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800">Review {isClaim ? 'Expense Claim' : 'Cash Advance'}</h2>
+                        <p className="text-sm text-slate-500">
+                            ID: #{request.id.slice(0, 8)} • Submitted by <span className="font-semibold text-slate-700">{isClaim ? claim?.employeeName : advance?.employeeName}</span>
                         </p>
                     </div>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                             <span className="text-xs font-bold text-slate-400 uppercase block mb-1">Amount (RM)</span>
-                             <span className="text-xl font-bold text-slate-900">
-                                {request.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                             </span>
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Details Column */}
+                        <div className="space-y-6">
+                            <div>
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Description / Purpose</h3>
+                                <p className="text-lg font-medium text-slate-800 leading-relaxed">
+                                    {isClaim ? claim?.description : advance?.purpose}
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <span className="text-xs font-bold text-slate-400 uppercase block mb-1">Amount (RM)</span>
+                                    <span className="text-xl font-bold text-slate-900">
+                                        {request.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                                {(request.currency !== 'RM') && (
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                        <span className="text-xs font-bold text-slate-400 uppercase block mb-1">Original ({request.currency})</span>
+                                        <span className="text-xl font-bold text-slate-600">
+                                            {request.originalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 block mt-1">Rate: {request.exchangeRate}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-3 text-sm text-slate-600">
+                                    <Calendar size={18} className="text-slate-400" />
+                                    <span className="font-medium">Date: {isClaim ? claim?.date : advance?.requestDate}</span>
+                                </div>
+                                {isClaim && (
+                                    <div className="flex items-center gap-3 text-sm text-slate-600">
+                                        <FileDigit size={18} className="text-slate-400" />
+                                        <span className="font-medium">Category: {claim?.category}</span>
+                                    </div>
+                                )}
+                                {!isClaim && (
+                                    <div className="flex items-center gap-3 text-sm text-slate-600">
+                                        <Clock size={18} className="text-slate-400" />
+                                        <span className="font-medium">Expected Settlement: {advance?.expectedSettlementDate || 'N/A'}</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                        {(request.currency !== 'RM') && (
-                             <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                                <span className="text-xs font-bold text-slate-400 uppercase block mb-1">Original ({request.currency})</span>
-                                <span className="text-xl font-bold text-slate-600">
-                                   {request.originalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                </span>
-                                <span className="text-[10px] text-slate-400 block mt-1">Rate: {request.exchangeRate}</span>
-                             </div>
-                        )}
-                    </div>
 
-                    <div className="space-y-3">
-                         <div className="flex items-center gap-3 text-sm text-slate-600">
-                            <Calendar size={18} className="text-slate-400" />
-                            <span className="font-medium">Date: {isClaim ? claim?.date : advance?.requestDate}</span>
-                         </div>
-                         {isClaim && (
-                            <div className="flex items-center gap-3 text-sm text-slate-600">
-                                <FileDigit size={18} className="text-slate-400" />
-                                <span className="font-medium">Category: {claim?.category}</span>
+                        {/* Proof / Image Column */}
+                        <div className="flex flex-col">
+                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                                {isClaim ? 'Receipt Evidence' : 'Supporting Documents'}
+                            </h3>
+                            <div className="flex-1 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl overflow-hidden flex items-center justify-center min-h-[250px] relative">
+                                {isClaim && imageUrl && !imageError ? (
+                                    <div className="w-full h-full flex items-center justify-center bg-slate-100/50">
+                                        {(() => {
+                                            const isPdf = imageUrl.toLowerCase().includes('.pdf') || (claim?.receiptUrl?.toLowerCase().endsWith('.pdf'));
+                                            const isImage = !isPdf && (imageUrl.toLowerCase().includes('.jpg') || imageUrl.toLowerCase().includes('.jpeg') || imageUrl.toLowerCase().includes('.png') || imageUrl.toLowerCase().includes('.gif'));
+
+                                            if (isPdf) {
+                                                return (
+                                                    <div className="w-full h-full relative group">
+                                                        {/* Overlay div to capture click on iframe for zoom */}
+                                                        <div
+                                                            className="absolute inset-0 z-20 cursor-zoom-in group-hover:bg-slate-900/5 transition-colors"
+                                                            onClick={() => setIsZoomed(true)}
+                                                            title="Click to Zoom PDF"
+                                                        />
+                                                        <iframe
+                                                            src={`${imageUrl}#toolbar=0`}
+                                                            className="w-full h-full border-0"
+                                                            title="Receipt PDF"
+                                                        />
+                                                    </div>
+                                                );
+                                            } else if (isImage) {
+                                                return (
+                                                    <div
+                                                        className="w-full h-full flex items-center justify-center cursor-zoom-in relative group transition-all hover:bg-slate-100"
+                                                        onClick={() => setIsZoomed(true)}
+                                                        title="Click to Zoom Image"
+                                                    >
+                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-slate-900/10 transition-colors flex items-center justify-center z-10 pointer-events-none">
+                                                            <ZoomIn className="text-slate-800 opacity-0 group-hover:opacity-100 drop-shadow-md transition-opacity duration-200" size={32} />
+                                                        </div>
+                                                        <img
+                                                            src={imageUrl}
+                                                            alt="Receipt"
+                                                            className="max-w-full max-h-full object-contain p-2"
+                                                            onError={() => setImageError(true)}
+                                                        />
+                                                    </div>
+                                                );
+                                            } else {
+                                                // Fallback for unknown types (e.g. docs, generic files)
+                                                return (
+                                                    <div className="flex flex-col items-center justify-center text-slate-500 p-4">
+                                                        <FileText size={48} className="mb-2 text-slate-400" />
+                                                        <p className="font-bold text-sm">Preview Unavailable</p>
+                                                        <a
+                                                            href={imageUrl}
+                                                            download
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="mt-3 flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors font-bold text-sm"
+                                                        >
+                                                            <Download size={16} /> Download File
+                                                        </a>
+                                                    </div>
+                                                );
+                                            }
+                                        })()}
+                                    </div>
+                                ) : (
+                                    <div className="text-center p-6 flex flex-col items-center">
+                                        {isClaim && claim?.receiptUrl && imageError ? (
+                                            <>
+                                                <ImageOff size={48} className="text-rose-200 mb-2" />
+                                                <p className="text-rose-400 text-sm font-medium">Image Unavailable</p>
+                                                <p className="text-xs text-rose-300 mt-1">File data is invalid or expired</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <FileText size={48} className="text-slate-200 mb-2" />
+                                                <p className="text-slate-400 text-sm font-medium">No image attached</p>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </div>
-                         )}
-                         {!isClaim && (
-                            <div className="flex items-center gap-3 text-sm text-slate-600">
-                                <Clock size={18} className="text-slate-400" />
-                                <span className="font-medium">Expected Settlement: {advance?.expectedSettlementDate || 'N/A'}</span>
-                            </div>
-                         )}
+                        </div>
                     </div>
                 </div>
 
-                {/* Proof / Image Column */}
-                <div className="flex flex-col">
-                     <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                        {isClaim ? 'Receipt Evidence' : 'Supporting Documents'}
-                     </h3>
-                     <div className="flex-1 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl overflow-hidden flex items-center justify-center min-h-[250px] relative">
-                        {isClaim && claim?.receiptUrl && !imageError ? (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-100/50">
-                                <img 
-                                    src={claim.receiptUrl} 
-                                    alt="Receipt" 
-                                    className="max-w-full max-h-full object-contain p-2" 
-                                    onError={() => setImageError(true)}
-                                />
-                            </div>
-                        ) : (
-                            <div className="text-center p-6 flex flex-col items-center">
-                                {isClaim && claim?.receiptUrl && imageError ? (
-                                    <>
-                                        <ImageOff size={48} className="text-rose-200 mb-2" />
-                                        <p className="text-rose-400 text-sm font-medium">Image Unavailable</p>
-                                        <p className="text-xs text-rose-300 mt-1">File data is invalid or expired</p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <FileText size={48} className="text-slate-200 mb-2" />
-                                        <p className="text-slate-400 text-sm font-medium">No image attached</p>
-                                    </>
-                                )}
-                            </div>
-                        )}
-                     </div>
+                {/* Footer Actions */}
+                <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                    <button
+                        onClick={() => onReject(request.id)}
+                        className="px-6 py-2.5 rounded-xl border border-rose-200 text-rose-700 font-bold hover:bg-rose-50 transition-colors flex items-center gap-2"
+                    >
+                        <XCircle size={18} /> Reject
+                    </button>
+                    <button
+                        onClick={() => onApprove(request.id)}
+                        className="px-6 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-colors flex items-center gap-2"
+                    >
+                        <Check size={18} /> Approve Request
+                    </button>
                 </div>
             </div>
         </div>
-
-        {/* Footer Actions */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-            <button 
-                onClick={() => onReject(request.id)}
-                className="px-6 py-2.5 rounded-xl border border-rose-200 text-rose-700 font-bold hover:bg-rose-50 transition-colors flex items-center gap-2"
-            >
-                <XCircle size={18} /> Reject
-            </button>
-            <button 
-                onClick={() => onApprove(request.id)}
-                className="px-6 py-2.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition-colors flex items-center gap-2"
-            >
-                <Check size={18} /> Approve Request
-            </button>
-        </div>
-      </div>
-    </div>
-  );
+    );
 };

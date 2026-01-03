@@ -8,7 +8,7 @@ export const fetchTransactions = async (): Promise<Transaction[]> => {
     .from('transactions')
     .select('*')
     .order('date', { ascending: false });
-  
+
   if (error) throw error;
   return data.map((t: any) => ({
     ...t,
@@ -32,7 +32,7 @@ export const createTransaction = async (transaction: Omit<Transaction, 'id'>) =>
     exchange_rate: transaction.exchangeRate,
     receipt_url: transaction.receiptUrl
   }]).select().single();
-  
+
   if (error) throw error;
   return data;
 };
@@ -85,7 +85,7 @@ export const updateClaimStatus = async (id: string, status: string) => {
 export const fetchProfiles = async (): Promise<UserCredential[]> => {
   const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
   if (error) throw error;
-  
+
   return data.map((p: any) => ({
     id: p.id || '', // Ensure ID is present
     username: p.username || p.email?.split('@')[0] || 'unknown',
@@ -101,35 +101,52 @@ export const fetchProfiles = async (): Promise<UserCredential[]> => {
 };
 
 export const updateProfile = async (id: string, updates: Partial<any>) => {
-    const cleanId = id.trim();
-    
-    // We strictly use the standard update method. 
-    // We do NOT ask for 'select' or 'count' return values to avoid RLS policy errors 
-    // where the user can update a row but not see the result.
-    const { error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', cleanId);
+  const cleanId = id.trim();
 
-    if (error) {
-        console.error("Supabase Update Error:", error);
-        throw error;
-    }
-    // If no error, we assume success for optimistic UI updates.
+  // We strictly use the standard update method. 
+  // We do NOT ask for 'select' or 'count' return values to avoid RLS policy errors 
+  // where the user can update a row but not see the result.
+  const { error } = await supabase
+    .from('profiles')
+    .update(updates)
+    .eq('id', cleanId);
+
+  if (error) {
+    console.error("Supabase Update Error:", error);
+    throw error;
+  }
+  // If no error, we assume success for optimistic UI updates.
 };
 
 export const updateProfileByUsername = async (username: string, updates: Partial<any>) => {
-    const { error } = await supabase.from('profiles').update(updates).eq('username', username);
-    if (error) throw error;
+  const { error } = await supabase.from('profiles').update(updates).eq('username', username);
+  if (error) throw error;
 };
 
 export const deleteProfile = async (id: string) => {
-    const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', id);
-        
-    if (error) throw error;
+  const { error } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+};
+
+export const uploadReceipt = async (file: File, userId: string): Promise<string | null> => {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+  const filePath = `${userId}/${fileName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('receipts')
+    .upload(filePath, file);
+
+  if (uploadError) {
+    console.error('Error uploading receipt:', uploadError);
+    return null;
+  }
+
+  return filePath;
 };
 
 // --- AUTH HELPERS ---
@@ -142,20 +159,20 @@ export const getCurrentProfile = async () => {
     .select('*')
     .eq('id', user.id)
     .single();
-    
+
   if (profile) {
-     return {
-        id: profile.id,
-        username: profile.username,
-        name: profile.full_name,
-        role: profile.role,
-        email: profile.email,
-        isActive: profile.is_active,
-        avatarUrl: profile.avatar_url,
-        bio: profile.bio,
-        phone: profile.phone,
-        createdAt: profile.created_at
-     } as UserCredential;
+    return {
+      id: profile.id,
+      username: profile.username,
+      name: profile.full_name,
+      role: profile.role,
+      email: profile.email,
+      isActive: profile.is_active,
+      avatarUrl: profile.avatar_url,
+      bio: profile.bio,
+      phone: profile.phone,
+      createdAt: profile.created_at
+    } as UserCredential;
   }
   return null;
 };
