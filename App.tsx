@@ -12,6 +12,7 @@ import { GeneralLedger } from './components/GeneralLedger';
 import { Reports } from './components/Reports';
 import { Recurring } from './components/Recurring';
 import { RequestDetailModal } from './components/RequestDetailModal';
+import { TransactionDetailModal } from './components/TransactionDetailModal';
 import { Toast } from './components/Toast';
 import { Logo } from './components/Logo';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -34,6 +35,7 @@ const App: React.FC = () => {
   const [notification, setNotification] = useState<Notification | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserCredential | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<{ data: Claim | AdvanceRequest, type: 'CLAIM' | 'ADVANCE' } | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [requestToReject, setRequestToReject] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -419,6 +421,13 @@ const App: React.FC = () => {
         />
       )}
 
+      {selectedTransaction && (
+        <TransactionDetailModal
+          transaction={selectedTransaction}
+          onClose={() => setSelectedTransaction(null)}
+        />
+      )}
+
       {!user ? (
         isSignUpMode ? <SignUp onSignUp={handleSignUp} onBack={() => setIsSignUpMode(false)} /> : <Login onLogin={handleLogin} onSignUpClick={() => setIsSignUpMode(true)} />
       ) : (
@@ -536,8 +545,8 @@ const App: React.FC = () => {
 
             <div className="p-4 md:p-8 max-w-7xl mx-auto w-full">
               {/* Shared Admin/Manager Views */}
-              {['ADMIN', 'MANAGER'].includes(user.role) && view === 'DASHBOARD' && <Dashboard transactions={transactions} userName={user.name} />}
-              {['ADMIN', 'MANAGER'].includes(user.role) && view === 'LEDGER' && <GeneralLedger transactions={transactions} />}
+              {['ADMIN', 'MANAGER'].includes(user.role) && view === 'DASHBOARD' && <Dashboard transactions={transactions} userName={user.name} onSelectTransaction={setSelectedTransaction} />}
+              {['ADMIN', 'MANAGER'].includes(user.role) && view === 'LEDGER' && <GeneralLedger transactions={transactions} onSelectTransaction={setSelectedTransaction} />}
               {['ADMIN', 'MANAGER'].includes(user.role) && view === 'REPORTS' && <Reports transactions={transactions} />}
               {['ADMIN', 'MANAGER'].includes(user.role) && view === 'RECURRING' && (
                 <Recurring
@@ -557,7 +566,7 @@ const App: React.FC = () => {
 
                   <div className="md:hidden divide-y divide-slate-100">
                     {transactions.slice().reverse().map(t => (
-                      <div key={t.id} className="p-5 flex flex-col gap-2 hover:bg-slate-50 transition-colors">
+                      <div key={t.id} className="p-5 flex flex-col gap-2 hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => setSelectedTransaction(t)}>
                         <div className="flex justify-between items-start">
                           <div>
                             <p className="font-semibold text-slate-800 leading-tight">{t.description}</p>
@@ -588,7 +597,7 @@ const App: React.FC = () => {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {transactions.slice().reverse().map(t => (
-                          <tr key={t.id} className="hover:bg-slate-50/80 transition-colors">
+                          <tr key={t.id} className="hover:bg-slate-50/80 transition-colors cursor-pointer" onClick={() => setSelectedTransaction(t)}>
                             <td className="px-6 py-4 font-medium text-slate-500">{t.date}</td><td className="px-6 py-4 font-semibold text-slate-800">{t.description}</td><td className="px-6 py-4"><span className="px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-md text-xs font-medium text-slate-600">{t.category}</span></td><td className="px-6 py-4 text-slate-400 text-xs">{t.createdBy}</td>
                             <td className={`px-6 py-4 text-right`}><div className={`font-bold ${t.type === 'CREDIT' ? 'text-emerald-600' : 'text-slate-800'}`}>{t.type === 'CREDIT' ? '+' : '-'}RM {t.amount.toFixed(2)}</div></td>
                           </tr>

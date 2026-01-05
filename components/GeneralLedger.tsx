@@ -5,6 +5,7 @@ import { ArrowUpRight, ArrowDownRight, ChevronRight, X, Search, Filter, Calendar
 
 interface GeneralLedgerProps {
   transactions: Transaction[];
+  onSelectTransaction?: (transaction: Transaction) => void;
 }
 
 interface AccountSummary {
@@ -16,10 +17,10 @@ interface AccountSummary {
   lastActivity: string | null;
 }
 
-export const GeneralLedger: React.FC<GeneralLedgerProps> = ({ transactions }) => {
+export const GeneralLedger: React.FC<GeneralLedgerProps> = ({ transactions, onSelectTransaction }) => {
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Filters
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -31,7 +32,7 @@ export const GeneralLedger: React.FC<GeneralLedgerProps> = ({ transactions }) =>
       // Date Filter
       if (startDate && t.date < startDate) return false;
       if (endDate && t.date > endDate) return false;
-      
+
       // Type Filter
       if (typeFilter !== 'ALL' && t.type !== typeFilter) return false;
 
@@ -42,7 +43,7 @@ export const GeneralLedger: React.FC<GeneralLedgerProps> = ({ transactions }) =>
   // Aggregate data by category based on filtered transactions
   const accounts = useMemo(() => {
     const accMap: Record<string, AccountSummary> = {};
-    
+
     // Initialize standard categories
     CATEGORIES.forEach(cat => {
       accMap[cat] = { category: cat, totalCredit: 0, totalDebit: 0, balance: 0, count: 0, lastActivity: null };
@@ -53,10 +54,10 @@ export const GeneralLedger: React.FC<GeneralLedgerProps> = ({ transactions }) =>
       if (!accMap[t.category]) {
         accMap[t.category] = { category: t.category, totalCredit: 0, totalDebit: 0, balance: 0, count: 0, lastActivity: null };
       }
-      
+
       const acc = accMap[t.category];
       acc.count++;
-      
+
       if (t.type === 'CREDIT') {
         acc.totalCredit += t.amount;
         acc.balance += t.amount;
@@ -74,9 +75,9 @@ export const GeneralLedger: React.FC<GeneralLedgerProps> = ({ transactions }) =>
     return Object.values(accMap).sort((a, b) => a.category.localeCompare(b.category));
   }, [filteredTransactions]);
 
-  const displayAccounts = accounts.filter(a => 
-    a.category.toLowerCase().includes(searchTerm.toLowerCase()) && 
-    (a.count > 0 || (searchTerm === '' && !startDate && !endDate && typeFilter === 'ALL')) 
+  const displayAccounts = accounts.filter(a =>
+    a.category.toLowerCase().includes(searchTerm.toLowerCase()) &&
+    (a.count > 0 || (searchTerm === '' && !startDate && !endDate && typeFilter === 'ALL'))
     // If filters are active, hide empty accounts. If no filters, show all standard categories even if empty.
   );
 
@@ -112,13 +113,13 @@ export const GeneralLedger: React.FC<GeneralLedgerProps> = ({ transactions }) =>
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3 w-full md:w-auto">
             <div className="relative flex-1 md:flex-none w-full md:w-auto">
               <Search className="absolute left-3 top-2.5 text-slate-400" size={16} />
-              <input 
-                type="text" 
-                placeholder="Search accounts..." 
+              <input
+                type="text"
+                placeholder="Search accounts..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 min-w-0 md:min-w-[240px]"
@@ -129,57 +130,57 @@ export const GeneralLedger: React.FC<GeneralLedgerProps> = ({ transactions }) =>
 
         {/* Filters Bar */}
         <div className="px-4 py-3 bg-slate-50/50 flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-4">
-            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                <div className="flex items-center gap-2">
-                    <Calendar size={16} className="text-slate-400" />
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date:</span>
-                </div>
-                <input 
-                    type="date" 
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                />
-                <span className="text-slate-400 text-sm hidden sm:inline">to</span>
-                <input 
-                    type="date" 
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                />
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
+              <Calendar size={16} className="text-slate-400" />
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date:</span>
             </div>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+            <span className="text-slate-400 text-sm hidden sm:inline">to</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
 
-            <div className="w-full h-px bg-slate-200 sm:w-px sm:h-6 sm:bg-slate-200"></div>
+          <div className="w-full h-px bg-slate-200 sm:w-px sm:h-6 sm:bg-slate-200"></div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-                <ListFilter size={16} className="text-slate-400" />
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type:</span>
-                <select
-                    value={typeFilter}
-                    onChange={(e) => setTypeFilter(e.target.value as any)}
-                    className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                >
-                    <option value="ALL">All Transactions</option>
-                    <option value="CREDIT">Credit (Income) Only</option>
-                    <option value="DEBIT">Debit (Expense) Only</option>
-                </select>
-            </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <ListFilter size={16} className="text-slate-400" />
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type:</span>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as any)}
+              className="flex-1 sm:flex-none px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            >
+              <option value="ALL">All Transactions</option>
+              <option value="CREDIT">Credit (Income) Only</option>
+              <option value="DEBIT">Debit (Expense) Only</option>
+            </select>
+          </div>
 
-            {hasFilters && (
-                <button 
-                    onClick={clearFilters}
-                    className="ml-auto sm:ml-0 flex items-center gap-1.5 text-xs font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors w-full sm:w-auto justify-center sm:justify-start"
-                >
-                    <RotateCcw size={14} /> Clear Filters
-                </button>
-            )}
+          {hasFilters && (
+            <button
+              onClick={clearFilters}
+              className="ml-auto sm:ml-0 flex items-center gap-1.5 text-xs font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-3 py-1.5 rounded-lg transition-colors w-full sm:w-auto justify-center sm:justify-start"
+            >
+              <RotateCcw size={14} /> Clear Filters
+            </button>
+          )}
         </div>
       </div>
 
       {/* Grid of Accounts */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {displayAccounts.map((acc) => (
-          <div 
+          <div
             key={acc.category}
             onClick={() => setSelectedAccount(acc.category)}
             className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-indigo-200 transition-all cursor-pointer group relative overflow-hidden"
@@ -212,24 +213,24 @@ export const GeneralLedger: React.FC<GeneralLedgerProps> = ({ transactions }) =>
                 </span>
               </div>
             </div>
-            
+
             <div className="absolute right-4 bottom-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                <ChevronRight className="text-indigo-400" />
+              <ChevronRight className="text-indigo-400" />
             </div>
           </div>
         ))}
         {displayAccounts.length === 0 && (
-            <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-                <p>No accounts match your filters.</p>
-                <button onClick={clearFilters} className="text-indigo-600 font-bold mt-2 hover:underline">Clear Filters</button>
-            </div>
+          <div className="col-span-full py-12 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+            <p>No accounts match your filters.</p>
+            <button onClick={clearFilters} className="text-indigo-600 font-bold mt-2 hover:underline">Clear Filters</button>
+          </div>
         )}
       </div>
 
       {/* Account Details Modal */}
       {selectedAccount && (
         <div className="fixed inset-0 bg-black/50 z-50 flex justify-end backdrop-blur-sm" onClick={() => setSelectedAccount(null)}>
-          <div 
+          <div
             className="w-full max-w-2xl bg-white h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col"
             onClick={e => e.stopPropagation()}
           >
@@ -237,15 +238,15 @@ export const GeneralLedger: React.FC<GeneralLedgerProps> = ({ transactions }) =>
               <div>
                 <h2 className="text-xl font-bold text-slate-800">{selectedAccount}</h2>
                 <div className="flex items-center gap-2 text-sm text-slate-500">
-                    <span className="font-medium">Ledger History</span>
-                    {(startDate || endDate) && (
-                        <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md text-xs font-bold">
-                            Filtered: {startDate || 'Start'} to {endDate || 'Now'}
-                        </span>
-                    )}
+                  <span className="font-medium">Ledger History</span>
+                  {(startDate || endDate) && (
+                    <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-md text-xs font-bold">
+                      Filtered: {startDate || 'Start'} to {endDate || 'Now'}
+                    </span>
+                  )}
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedAccount(null)}
                 className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors"
               >
@@ -266,34 +267,34 @@ export const GeneralLedger: React.FC<GeneralLedgerProps> = ({ transactions }) =>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {selectedAccountTransactions.length === 0 ? (
-                       <tr>
-                           <td colSpan={4} className="px-4 py-8 text-center text-slate-400">No transactions found for this period.</td>
-                       </tr>
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center text-slate-400">No transactions found for this period.</td>
+                      </tr>
                     ) : (
-                        selectedAccountTransactions.map(t => (
-                        <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-4 py-3 font-medium text-slate-500">{t.date}</td>
-                            <td className="px-4 py-3 text-slate-800">{t.description}</td>
-                            <td className="px-4 py-3 text-right text-rose-600 font-medium">
+                      selectedAccountTransactions.map(t => (
+                        <tr key={t.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => onSelectTransaction?.(t)}>
+                          <td className="px-4 py-3 font-medium text-slate-500">{t.date}</td>
+                          <td className="px-4 py-3 text-slate-800">{t.description}</td>
+                          <td className="px-4 py-3 text-right text-rose-600 font-medium">
                             {t.type === 'DEBIT' ? `RM ${t.amount.toFixed(2)}` : '-'}
-                            </td>
-                            <td className="px-4 py-3 text-right text-emerald-600 font-medium">
+                          </td>
+                          <td className="px-4 py-3 text-right text-emerald-600 font-medium">
                             {t.type === 'CREDIT' ? `RM ${t.amount.toFixed(2)}` : '-'}
-                            </td>
+                          </td>
                         </tr>
-                        ))
+                      ))
                     )}
                   </tbody>
                   <tfoot className="bg-slate-50 font-bold text-slate-700">
-                     <tr>
-                         <td colSpan={2} className="px-4 py-3 text-right uppercase text-xs tracking-wider text-slate-500">Period Totals</td>
-                         <td className="px-4 py-3 text-right text-rose-700">
-                             RM {selectedAccountTransactions.filter(t => t.type === 'DEBIT').reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
-                         </td>
-                         <td className="px-4 py-3 text-right text-emerald-700">
-                             RM {selectedAccountTransactions.filter(t => t.type === 'CREDIT').reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
-                         </td>
-                     </tr>
+                    <tr>
+                      <td colSpan={2} className="px-4 py-3 text-right uppercase text-xs tracking-wider text-slate-500">Period Totals</td>
+                      <td className="px-4 py-3 text-right text-rose-700">
+                        RM {selectedAccountTransactions.filter(t => t.type === 'DEBIT').reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-3 text-right text-emerald-700">
+                        RM {selectedAccountTransactions.filter(t => t.type === 'CREDIT').reduce((sum, t) => sum + t.amount, 0).toLocaleString()}
+                      </td>
+                    </tr>
                   </tfoot>
                 </table>
               </div>
