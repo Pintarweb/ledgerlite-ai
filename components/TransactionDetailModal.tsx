@@ -174,7 +174,6 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                                             const lowerUrl = imageUrl?.toLowerCase() || '';
                                             const lowerPath = transaction.receiptUrl?.toLowerCase() || '';
                                             const isPdf = lowerUrl.includes('.pdf') || lowerPath.endsWith('.pdf') || lowerUrl.includes('application/pdf');
-                                            const isImage = !isPdf && (lowerUrl.startsWith('data:image') || /\.(jpg|jpeg|png|gif|webp|svg)($|\?)/.test(lowerUrl) || /\.(jpg|jpeg|png|gif|webp|svg)($|\?)/.test(lowerPath));
 
                                             if (isPdf) {
                                                 return (
@@ -192,42 +191,45 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                                                         />
                                                     </div>
                                                 );
-                                            } else if (isImage) {
-                                                return (
-                                                    <div
-                                                        className="w-full h-full flex items-center justify-center cursor-zoom-in relative group transition-all hover:bg-slate-100"
-                                                        onClick={() => setIsZoomed(true)}
-                                                        title="Click to Zoom Image"
-                                                    >
-                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-slate-900/10 transition-colors flex items-center justify-center z-10 pointer-events-none">
-                                                            <ZoomIn className="text-slate-800 opacity-0 group-hover:opacity-100 drop-shadow-md transition-opacity duration-200" size={32} />
-                                                        </div>
-                                                        <img
-                                                            src={imageUrl}
-                                                            alt="Receipt"
-                                                            className="max-w-full max-h-full object-contain p-2"
-                                                            onError={() => setImageError(true)}
-                                                        />
-                                                    </div>
-                                                );
-                                            } else {
-                                                // Fallback for unknown types (e.g. docs, generic files)
+                                            }
+
+                                            // Default to Image View for everything else
+                                            if (imageError) {
                                                 return (
                                                     <div className="flex flex-col items-center justify-center text-slate-500 p-4">
                                                         <FileText size={48} className="mb-2 text-slate-400" />
                                                         <p className="font-bold text-sm">Preview Unavailable</p>
+                                                        <p className="text-xs text-slate-400 mb-3">Format not supported or file missing</p>
                                                         <a
                                                             href={imageUrl}
                                                             download
                                                             target="_blank"
                                                             rel="noreferrer"
-                                                            className="mt-3 flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors font-bold text-sm"
+                                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors font-bold text-sm"
                                                         >
                                                             <Download size={16} /> Download File
                                                         </a>
                                                     </div>
                                                 );
                                             }
+
+                                            return (
+                                                <div
+                                                    className="w-full h-full flex items-center justify-center cursor-zoom-in relative group transition-all hover:bg-slate-100"
+                                                    onClick={() => setIsZoomed(true)}
+                                                    title="Click to Zoom Image"
+                                                >
+                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-slate-900/10 transition-colors flex items-center justify-center z-10 pointer-events-none">
+                                                        <ZoomIn className="text-slate-800 opacity-0 group-hover:opacity-100 drop-shadow-md transition-opacity duration-200" size={32} />
+                                                    </div>
+                                                    <img
+                                                        src={imageUrl}
+                                                        alt="Receipt"
+                                                        className="max-w-full max-h-full object-contain p-2"
+                                                        onError={() => setImageError(true)}
+                                                    />
+                                                </div>
+                                            );
                                         })()}
                                     </div>
                                 ) : (
