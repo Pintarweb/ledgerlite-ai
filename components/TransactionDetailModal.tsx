@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Transaction } from '../types';
+import { supabase } from '../lib/supabaseClient';
 import { X, Calendar, DollarSign, FileText, FileDigit, ImageOff, ZoomIn, Download, User, Globe, ExternalLink } from 'lucide-react';
 
 interface TransactionDetailModalProps {
@@ -11,6 +12,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
     const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [isZoomed, setIsZoomed] = useState(false);
     const [imageError, setImageError] = useState(false);
+    const [debugError, setDebugError] = useState<string | null>(null);
 
     React.useEffect(() => {
         if (transaction.receiptUrl) {
@@ -23,16 +25,22 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                 // Fetch signed URL
                 const fetchSignedUrl = async () => {
                     try {
-                        // We request a signed URL valid for 1 hour
-                        const { data, error } = await import('../lib/supabaseClient').then(m => m.supabase.storage
-                            .from('receipts')
-                            .createSignedUrl(transaction.receiptUrl!, 3600));
+                        // Fetch signed URL
+                        const { data, error } = await supabase.storage.from('receipts').createSignedUrl(transaction.receiptUrl!, 3600);
 
-                        if (error) throw error;
-                        if (data?.signedUrl) setImageUrl(data.signedUrl);
-                    } catch (e) {
-                        console.error("Error fetching signed URL", e);
-                        setImageError(true);
+                        if (error) {
+                            console.error('Sign URL error:', error);
+                            setDebugError(error.message);
+                            setImageError(true); // Set imageError if there's an error fetching the signed URL
+                        }
+
+                        if (data) {
+                            setImageUrl(data.signedUrl);
+                        }
+                    } catch (error: any) {
+                        console.error('Error signing url:', error);
+                        setDebugError(error?.message || 'Unknown error');
+                        setImageError(true); // Set imageError for any other exceptions
                     }
                 };
                 fetchSignedUrl();
@@ -111,7 +119,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                             <span>ID: #{transaction.id.slice(0, 8)}-{transaction.id.slice(-4)}</span>
                             <span>•</span>
                             <span>Recorded by <span className="font-semibold text-slate-700">{transaction.createdBy || 'Unknown'}</span></span>
-                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.10</span>
+                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.11</span>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
@@ -268,7 +276,12 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
 
                         {/* Debug Info */}
                         <div className="mt-4 p-2 bg-slate-100 rounded text-[10px] text-slate-500 font-mono break-all">
-                            DEBUG PATH: {transaction.receiptUrl || 'No URL'}
+                            <p>DEBUG PATH: {transaction.receiptUrl || 'No URL'}</p>
+                            {debugError && <p className="text-red-500 mt-1">ERROR: {debugError}</p>}
+                            <p className="mt-1 text-slate-400">
+                                ENV: URL={import.meta.env.VITE_SUPABASE_URL ? 'OK' : 'MISSING'},
+                                KEY={import.meta.env.VITE_SUPABASE_ANON_KEY ? 'OK' : 'MISSING'}
+                            </p>
                         </div>
                     </div>
                 </div>
