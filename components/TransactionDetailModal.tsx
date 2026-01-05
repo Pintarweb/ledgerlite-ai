@@ -119,7 +119,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                             <span>ID: #{transaction.id.slice(0, 8)}-{transaction.id.slice(-4)}</span>
                             <span>•</span>
                             <span>Recorded by <span className="font-semibold text-slate-700">{transaction.createdBy || 'Unknown'}</span></span>
-                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.11</span>
+                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.12</span>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
@@ -279,8 +279,8 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                             <p>DEBUG PATH: {transaction.receiptUrl || 'No URL'}</p>
                             {debugError && <p className="text-red-500 mt-1">ERROR: {debugError}</p>}
                             <p className="mt-1 text-slate-400">
-                                ENV: URL={import.meta.env.VITE_SUPABASE_URL ? 'OK' : 'MISSING'},
-                                KEY={import.meta.env.VITE_SUPABASE_ANON_KEY ? 'OK' : 'MISSING'}
+                                ENV: URL_HOST={(() => { try { return new URL(import.meta.env.VITE_SUPABASE_URL).hostname } catch (e) { return 'INVALID' } })()},
+                                KeySet={!!import.meta.env.VITE_SUPABASE_ANON_KEY}
                             </p>
                         </div>
                     </div>
