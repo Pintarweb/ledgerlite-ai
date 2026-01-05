@@ -13,6 +13,11 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
     const [isZoomed, setIsZoomed] = useState(false);
     const [imageError, setImageError] = useState(false);
     const [debugError, setDebugError] = useState<string | null>(null);
+    const [currentUserId, setCurrentUserId] = useState<string>('...');
+
+    React.useEffect(() => {
+        supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id || 'none'));
+    }, []);
 
     React.useEffect(() => {
         if (transaction.receiptUrl) {
@@ -122,7 +127,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                             <span>ID: #{transaction.id.slice(0, 8)}-{transaction.id.slice(-4)}</span>
                             <span>•</span>
                             <span>Recorded by <span className="font-semibold text-slate-700">{transaction.createdBy || 'Unknown'}</span></span>
-                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.13</span>
+                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.14</span>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
@@ -283,7 +288,8 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                             {debugError && <p className="text-red-500 mt-1">ERROR: {debugError}</p>}
                             <p className="mt-1 text-slate-400">
                                 ENV: URL_HOST={(() => { try { return new URL(import.meta.env.VITE_SUPABASE_URL).hostname } catch (e) { return 'INVALID' } })()},
-                                KeySet={!!import.meta.env.VITE_SUPABASE_ANON_KEY ? 'TRUE' : 'FALSE'}
+                                KeySet={!!import.meta.env.VITE_SUPABASE_ANON_KEY ? 'TRUE' : 'FALSE'},
+                                User={currentUserId}
                             </p>
                         </div>
                     </div>
