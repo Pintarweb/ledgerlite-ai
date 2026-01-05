@@ -111,7 +111,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                             <span>ID: #{transaction.id.slice(0, 8)}-{transaction.id.slice(-4)}</span>
                             <span>•</span>
                             <span>Recorded by <span className="font-semibold text-slate-700">{transaction.createdBy || 'Unknown'}</span></span>
-                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.8</span>
+                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.9</span>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
@@ -171,9 +171,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                                 <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                                     Receipt Evidence
                                 </h3>
-                                {imageUrl && (
+                                {transaction.receiptUrl && (
                                     <a
-                                        href={imageUrl}
+                                        href={imageUrl || transaction.receiptUrl!}
                                         target="_blank"
                                         rel="noreferrer"
                                         className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md transition-colors"
@@ -183,7 +183,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                                 )}
                             </div>
                             <div className="flex-1 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl overflow-hidden flex items-center justify-center min-h-[250px] relative">
-                                {imageUrl && !imageError ? (
+                                {imageUrl ? (
                                     <div className="w-full h-full flex items-center justify-center bg-slate-100/50">
                                         {(() => {
                                             const lowerUrl = imageUrl?.toLowerCase() || '';
