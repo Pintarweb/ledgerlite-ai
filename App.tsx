@@ -799,7 +799,13 @@ const App: React.FC = () => {
               )}
             </div>
 
-            {showTransactionForm && <TransactionForm onAddTransaction={addTransaction} onClose={() => setShowTransactionForm(false)} />}
+            {showTransactionForm && (
+              <TransactionForm
+                onAddTransaction={addTransaction}
+                onClose={() => setShowTransactionForm(false)}
+                userId={user?.id || 'system'}
+              />
+            )}
             {showProfileSettings && <ProfileSettings user={user} onSave={handleUpdateProfile} onClose={() => setShowProfileSettings(false)} />}
             {selectedUser && <UserDetail user={selectedUser} currentUser={user} transactions={transactions} claims={claims} onClose={() => setSelectedUser(null)} onUpdateRole={updateUserRole} onToggleStatus={toggleUserStatus} />}
           </main>
