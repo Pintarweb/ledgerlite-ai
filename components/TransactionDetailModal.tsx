@@ -30,17 +30,20 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
 
                         if (error) {
                             console.error('Sign URL error:', error);
-                            setDebugError(error.message);
-                            setImageError(true); // Set imageError if there's an error fetching the signed URL
+                            setDebugError(`SignedUrl Error: ${error.message}`);
+                            // If signing fails, we could try direct download, but usually it implies missing file.
+                            setImageError(true);
                         }
 
                         if (data) {
                             setImageUrl(data.signedUrl);
+                            // We don't clear debugError here in case we want to see previous errors, 
+                            // but usually logic dictates we clear it on success.
                         }
                     } catch (error: any) {
                         console.error('Error signing url:', error);
-                        setDebugError(error?.message || 'Unknown error');
-                        setImageError(true); // Set imageError for any other exceptions
+                        setDebugError(`Exception: ${error?.message || 'Unknown'}`);
+                        setImageError(true);
                     }
                 };
                 fetchSignedUrl();
@@ -119,7 +122,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                             <span>ID: #{transaction.id.slice(0, 8)}-{transaction.id.slice(-4)}</span>
                             <span>•</span>
                             <span>Recorded by <span className="font-semibold text-slate-700">{transaction.createdBy || 'Unknown'}</span></span>
-                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.12</span>
+                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.13</span>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
@@ -280,7 +283,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                             {debugError && <p className="text-red-500 mt-1">ERROR: {debugError}</p>}
                             <p className="mt-1 text-slate-400">
                                 ENV: URL_HOST={(() => { try { return new URL(import.meta.env.VITE_SUPABASE_URL).hostname } catch (e) { return 'INVALID' } })()},
-                                KeySet={!!import.meta.env.VITE_SUPABASE_ANON_KEY}
+                                KeySet={!!import.meta.env.VITE_SUPABASE_ANON_KEY ? 'TRUE' : 'FALSE'}
                             </p>
                         </div>
                     </div>
