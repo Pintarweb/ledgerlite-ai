@@ -288,7 +288,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                             <p className="mt-1 text-slate-400">
                                 ENV: URL_HOST={(() => { try { return new URL(import.meta.env.VITE_SUPABASE_URL).hostname } catch (e) { return 'INVALID' } })()},
                                 KeySet={!!import.meta.env.VITE_SUPABASE_ANON_KEY ? 'TRUE' : 'FALSE'},
-                                User={currentUserId}
+                                User='{currentUserId}'
                             </p>
                         </div>
                     </div>
