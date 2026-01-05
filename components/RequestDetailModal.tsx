@@ -156,8 +156,10 @@ export const RequestDetailModal: React.FC<RequestDetailModalProps> = ({ request,
                                 {isClaim && imageUrl && !imageError ? (
                                     <div className="w-full h-full flex items-center justify-center bg-slate-100/50">
                                         {(() => {
-                                            const isPdf = imageUrl.toLowerCase().includes('.pdf') || (claim?.receiptUrl?.toLowerCase().endsWith('.pdf'));
-                                            const isImage = !isPdf && (imageUrl.toLowerCase().includes('.jpg') || imageUrl.toLowerCase().includes('.jpeg') || imageUrl.toLowerCase().includes('.png') || imageUrl.toLowerCase().includes('.gif'));
+                                            const lowerUrl = imageUrl?.toLowerCase() || '';
+                                            const lowerPath = claim?.receiptUrl?.toLowerCase() || '';
+                                            const isPdf = lowerUrl.includes('.pdf') || lowerPath.endsWith('.pdf') || lowerUrl.includes('application/pdf');
+                                            const isImage = !isPdf && (lowerUrl.startsWith('data:image') || /\.(jpg|jpeg|png|gif|webp|svg)($|\?)/.test(lowerUrl) || /\.(jpg|jpeg|png|gif|webp|svg)($|\?)/.test(lowerPath));
 
                                             if (isPdf) {
                                                 return (

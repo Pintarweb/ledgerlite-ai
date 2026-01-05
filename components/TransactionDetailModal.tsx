@@ -172,8 +172,8 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                                         {(() => {
                                             const lowerUrl = imageUrl?.toLowerCase() || '';
                                             const lowerPath = transaction.receiptUrl?.toLowerCase() || '';
-                                            const isPdf = lowerUrl.includes('.pdf') || lowerPath.endsWith('.pdf');
-                                            const isImage = !isPdf && (/\.(jpg|jpeg|png|gif|webp|svg)($|\?)/.test(lowerUrl) || /\.(jpg|jpeg|png|gif|webp|svg)($|\?)/.test(lowerPath));
+                                            const isPdf = lowerUrl.includes('.pdf') || lowerPath.endsWith('.pdf') || lowerUrl.includes('application/pdf');
+                                            const isImage = !isPdf && (lowerUrl.startsWith('data:image') || /\.(jpg|jpeg|png|gif|webp|svg)($|\?)/.test(lowerUrl) || /\.(jpg|jpeg|png|gif|webp|svg)($|\?)/.test(lowerPath));
 
                                             if (isPdf) {
                                                 return (
