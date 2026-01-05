@@ -111,7 +111,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                             <span>ID: #{transaction.id.slice(0, 8)}-{transaction.id.slice(-4)}</span>
                             <span>•</span>
                             <span>Recorded by <span className="font-semibold text-slate-700">{transaction.createdBy || 'Unknown'}</span></span>
-                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.9</span>
+                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.10</span>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
@@ -264,6 +264,11 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                                     </div>
                                 )}
                             </div>
+                        </div>
+
+                        {/* Debug Info */}
+                        <div className="mt-4 p-2 bg-slate-100 rounded text-[10px] text-slate-500 font-mono break-all">
+                            DEBUG PATH: {transaction.receiptUrl || 'No URL'}
                         </div>
                     </div>
                 </div>
