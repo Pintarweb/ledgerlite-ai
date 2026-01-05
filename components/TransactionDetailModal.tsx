@@ -107,9 +107,12 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                 <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                     <div>
                         <h2 className="text-xl font-bold text-slate-800">Transaction Details</h2>
-                        <p className="text-sm text-slate-500">
-                            ID: #{transaction.id} • Recorded by <span className="font-semibold text-slate-700">{transaction.createdBy}</span>
-                        </p>
+                        <div className="text-sm text-slate-500 flex gap-2">
+                            <span>ID: #{transaction.id.slice(0, 8)}-{transaction.id.slice(-4)}</span>
+                            <span>•</span>
+                            <span>Recorded by <span className="font-semibold text-slate-700">{transaction.createdBy || 'Unknown'}</span></span>
+                            <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded text-slate-400 self-center">v0.1.7</span>
+                        </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
                         <X size={20} />
