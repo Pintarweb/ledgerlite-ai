@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Transaction } from '../types';
-import { X, Calendar, DollarSign, FileText, FileDigit, ImageOff, ZoomIn, Download, User, Globe } from 'lucide-react';
+import { X, Calendar, DollarSign, FileText, FileDigit, ImageOff, ZoomIn, Download, User, Globe, ExternalLink } from 'lucide-react';
 
 interface TransactionDetailModalProps {
     transaction: Transaction;
@@ -164,9 +164,21 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
 
                         {/* Proof / Image Column */}
                         <div className="flex flex-col">
-                            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                                Receipt Evidence
-                            </h3>
+                            <div className="flex justify-between items-center mb-2">
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    Receipt Evidence
+                                </h3>
+                                {imageUrl && (
+                                    <a
+                                        href={imageUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md transition-colors"
+                                    >
+                                        Open in New Tab <ExternalLink size={10} />
+                                    </a>
+                                )}
+                            </div>
                             <div className="flex-1 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl overflow-hidden flex items-center justify-center min-h-[250px] relative">
                                 {imageUrl && !imageError ? (
                                     <div className="w-full h-full flex items-center justify-center bg-slate-100/50">
