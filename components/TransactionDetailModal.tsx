@@ -14,6 +14,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
     const [imageError, setImageError] = useState(false);
     const [debugError, setDebugError] = useState<string | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string>('...');
+    const [isDownloading, setIsDownloading] = useState(false);
 
     React.useEffect(() => {
         supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id || 'none'));
@@ -230,15 +231,44 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
                                                         <FileText size={48} className="mb-2 text-slate-400" />
                                                         <p className="font-bold text-sm">Preview Unavailable</p>
                                                         <p className="text-xs text-slate-400 mb-3">Format not supported or file missing</p>
-                                                        <a
-                                                            href={imageUrl}
-                                                            download
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors font-bold text-sm"
-                                                        >
-                                                            <Download size={16} /> Download File
-                                                        </a>
+                                                        <div className="flex flex-col gap-2">
+                                                            <a
+                                                                href={imageUrl}
+                                                                download
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors font-bold text-sm justify-center"
+                                                            >
+                                                                <Download size={16} /> Download via Link
+                                                            </a>
+                                                            <button
+                                                                onClick={async () => {
+                                                                    try {
+                                                                        setIsDownloading(true);
+                                                                        const { data, error } = await supabase.storage.from('receipts').download(transaction.receiptUrl!);
+                                                                        if (error) throw error;
+                                                                        if (data) {
+                                                                            const url = URL.createObjectURL(data);
+                                                                            const a = document.createElement('a');
+                                                                            a.href = url;
+                                                                            a.download = transaction.receiptUrl?.split('/').pop() || 'download';
+                                                                            document.body.appendChild(a);
+                                                                            a.click();
+                                                                            document.body.removeChild(a);
+                                                                            URL.revokeObjectURL(url);
+                                                                        }
+                                                                    } catch (e: any) {
+                                                                        alert('Secure Download Failed: ' + e.message);
+                                                                    } finally {
+                                                                        setIsDownloading(false);
+                                                                    }
+                                                                }}
+                                                                disabled={isDownloading}
+                                                                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors font-bold text-sm justify-center"
+                                                            >
+                                                                <Download size={16} /> {isDownloading ? 'Downloading...' : 'Secure Download (Blob)'}
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 );
                                             }
