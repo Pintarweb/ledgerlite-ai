@@ -14,9 +14,10 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({ 
 
     React.useEffect(() => {
         if (transaction.receiptUrl) {
+            const lowerUrl = transaction.receiptUrl.toLowerCase();
             // If it looks like a URL (http/https/data), use it directly. 
             // Otherwise assume it is a private storage path.
-            if (transaction.receiptUrl.startsWith('http') || transaction.receiptUrl.startsWith('data:')) {
+            if (lowerUrl.startsWith('http') || lowerUrl.startsWith('data:')) {
                 setImageUrl(transaction.receiptUrl);
             } else {
                 // Fetch signed URL
